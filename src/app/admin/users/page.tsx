@@ -1,21 +1,38 @@
-import connectToDatabase from '@/lib/db/mongodb';
-import { User, IUser } from '@/models/User';
+"use client";
+
+import { useEffect, useState } from 'react';
+import { db } from '@/lib/firebase/client';
+import { collection, getDocs, orderBy, query } from 'firebase/firestore';
 import { format } from 'date-fns';
-import { Shield, ShieldAlert, User as UserIcon } from 'lucide-react';
+import { Shield, ShieldAlert, User as UserIcon, Loader2 } from 'lucide-react';
 
-export const dynamic = 'force-dynamic';
+export default function UsersPage() {
+  const [users, setUsers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [dbError, setDbError] = useState(false);
 
-export default async function UsersPage() {
-  let users: Array<IUser & { _id: string }> = [];
-  let dbError = false;
-
-  try {
-    await connectToDatabase();
-    users = await User.find({}).sort({ createdAt: -1 }).lean() as unknown as Array<IUser & { _id: string }>;
-  } catch (e) {
-    dbError = true;
-    console.error("Failed to fetch users", e);
-  }
+  useEffect(() => {
+    async function fetchUsers() {
+      try {
+        const usersRef = collection(db, "users");
+        const snapshot = await getDocs(usersRef);
+        
+        const fetchedUsers = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        
+        setUsers(fetchedUsers);
+      } catch (e) {
+        setDbError(true);
+        console.error("Failed to fetch Firestore users", e);
+      } finally {
+        setLoading(false);
+      }
+    }
+    
+    fetchUsers();
+  }, []);
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
@@ -23,13 +40,13 @@ export default async function UsersPage() {
         <div className="absolute inset-0 bg-gradient-to-r from-red-500/10 to-purple-500/10 opacity-50 mix-blend-overlay"></div>
         <div className="relative z-10">
           <h1 className="text-4xl font-black tracking-tighter mb-2 text-transparent bg-clip-text bg-gradient-to-r from-white to-white/60">
-            User Security & Access
+            Firestore User Identity
           </h1>
-          <p className="text-muted-foreground text-lg">Monitor, audit, and manage all authenticated identities.</p>
+          <p className="text-muted-foreground text-lg">Monitor, audit, and manage all authenticated identities from Firebase.</p>
         </div>
         <div className="relative z-10 bg-red-500/10 border border-red-500/20 text-red-500 px-6 py-3 rounded-2xl font-bold text-lg shadow-lg flex items-center gap-2">
           <UserIcon className="w-5 h-5" />
-          {users.length} Identities
+          {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : users.length} Identities
         </div>
       </div>
 
@@ -37,8 +54,8 @@ export default async function UsersPage() {
         <div className="bg-red-500/10 border border-red-500/30 text-red-500 p-6 rounded-2xl flex items-start gap-4">
           <ShieldAlert className="w-6 h-6 shrink-0 mt-1" />
           <div>
-            <h3 className="font-bold text-lg">Database Connection Unavailable</h3>
-            <p className="opacity-80">We could not retrieve live users right now due to a network or database configuration error.</p>
+            <h3 className="font-bold text-lg">Firestore Permission Error</h3>
+            <p className="opacity-80">We could not retrieve live users right now due to insufficient permissions or a network error.</p>
           </div>
         </div>
       )}
@@ -50,32 +67,38 @@ export default async function UsersPage() {
               <tr>
                 <th className="px-8 py-5 font-bold">Identity</th>
                 <th className="px-8 py-5 font-bold">Clearance Level</th>
-                <th className="px-8 py-5 font-bold">System UID</th>
-                <th className="px-8 py-5 font-bold">First Seen</th>
+                <th className="px-8 py-5 font-bold">Firestore Doc ID</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
-              {users.length === 0 ? (
+              {loading ? (
                 <tr>
-                  <td colSpan={4} className="px-8 py-20 text-center text-muted-foreground">
+                  <td colSpan={3} className="px-8 py-20 text-center text-muted-foreground">
+                    <Loader2 className="w-12 h-12 animate-spin mx-auto opacity-50 mb-4" />
+                    Fetching from Firestore...
+                  </td>
+                </tr>
+              ) : users.length === 0 ? (
+                <tr>
+                  <td colSpan={3} className="px-8 py-20 text-center text-muted-foreground">
                     <div className="flex justify-center mb-4 opacity-50">
                       <Shield className="w-12 h-12" />
                     </div>
-                    No users found in database registry.
+                    No users found in Firestore database.
                   </td>
                 </tr>
               ) : (
                 users.map((u) => (
-                  <tr key={u._id.toString()} className="hover:bg-white/5 transition-all duration-300">
+                  <tr key={u.id} className="hover:bg-white/5 transition-all duration-300">
                     <td className="px-8 py-5">
                       <div className="flex items-center gap-4">
                         <img 
-                          src={u.photoURL || `https://api.dicebear.com/7.x/initials/svg?seed=${u.displayName || u.email}&backgroundColor=ef4444`} 
+                          src={u.photoURL || `https://api.dicebear.com/7.x/initials/svg?seed=${u.name || u.email}&backgroundColor=ef4444`} 
                           alt="Avatar" 
                           className="w-12 h-12 rounded-xl border border-white/10 shadow-lg"
                         />
                         <div>
-                          <div className="font-bold text-foreground text-base tracking-tight">{u.displayName || 'No Name Provided'}</div>
+                          <div className="font-bold text-foreground text-base tracking-tight">{u.name || 'No Name Provided'}</div>
                           <div className="text-muted-foreground text-sm opacity-70">{u.email}</div>
                         </div>
                       </div>
@@ -86,14 +109,11 @@ export default async function UsersPage() {
                           ? 'bg-red-500/20 text-red-400 border border-red-500/30 shadow-[0_0_15px_rgba(239,68,68,0.2)]' 
                           : 'bg-white/5 text-muted-foreground border border-white/10'
                       }`}>
-                        {u.role.toUpperCase()}
+                        {u.role ? u.role.toUpperCase() : 'USER'}
                       </span>
                     </td>
                     <td className="px-8 py-5 font-mono text-xs text-muted-foreground opacity-70">
-                      {u.firebaseUid}
-                    </td>
-                    <td className="px-8 py-5 text-muted-foreground font-medium">
-                      {format(new Date(u.createdAt), 'MMM dd, yyyy')}
+                      {u.id}
                     </td>
                   </tr>
                 ))
