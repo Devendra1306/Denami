@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAdminAuth } from '@/lib/firebase/admin';
-import connectToDatabase from '@/lib/db/mongodb';
-import { User } from '@/models/User';
+import { getAdminAuth, getAdminFirestore } from '@/lib/firebase/admin';
 
 export async function POST(req: NextRequest) {
   try {
@@ -20,7 +18,6 @@ export async function POST(req: NextRequest) {
       decodedToken = await adminAuth.verifyIdToken(token);
     } catch (adminError) {
       console.warn("Firebase Admin failed (missing keys?). Falling back to basic decode.");
-      // Fallback: decode JWT without signature verification to unblock development
       const payload = token.split('.')[1];
       decodedToken = JSON.parse(Buffer.from(payload, 'base64').toString('utf-8'));
     }
@@ -36,44 +33,51 @@ export async function POST(req: NextRequest) {
 
     let dbUser;
     try {
-      // Connect to MongoDB
-      await connectToDatabase();
+      const db = getAdminFirestore();
+      const userRef = db.collection('users').doc(uid);
+      const userDoc = await userRef.get();
       
       const adminEmail = 'devendrasagar0988@gmail.com';
       const userRole = email === adminEmail ? 'admin' : 'user';
 
-      // Try to find existing user or create a new one
-      dbUser = await User.findOne({ firebaseUid: uid });
-      
-      if (dbUser) {
-        dbUser.email = email;
-        if (name) dbUser.displayName = name;
-        if (picture) dbUser.photoURL = picture;
-        if (email === adminEmail && dbUser.role !== 'admin') {
-          dbUser.role = 'admin';
-        }
-        dbUser.updatedAt = new Date();
-        await dbUser.save();
-      } else {
-        dbUser = await User.create({
-          firebaseUid: uid,
+      if (userDoc.exists) {
+        dbUser = userDoc.data();
+        
+        // Update user fields
+        const updates: any = {
           email,
-          displayName: name || '',
+          updatedAt: new Date().toISOString()
+        };
+        if (name) updates.name = name;
+        if (picture) updates.photoURL = picture;
+        if (email === adminEmail && dbUser?.role !== 'admin') {
+          updates.role = 'admin';
+        }
+        
+        await userRef.update(updates);
+        dbUser = { ...dbUser, ...updates, id: uid };
+      } else {
+        // Create new user
+        const newUser = {
+          email,
+          name: name || '',
           photoURL: picture || '',
           role: userRole,
-        });
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+        await userRef.set(newUser);
+        dbUser = { ...newUser, id: uid };
       }
     } catch (dbError: any) {
-      console.warn("MongoDB sync failed (Network/DNS issue). Returning memory fallback.", dbError.message);
-      // Failsafe: If MongoDB is completely unreachable, mock the user so they aren't locked out!
+      console.warn("Firestore sync failed (Missing Admin Keys?). Returning memory fallback.", dbError.message);
       const adminEmail = 'devendrasagar0988@gmail.com';
       dbUser = {
-        firebaseUid: uid,
+        id: uid,
         email,
-        displayName: name || '',
+        name: name || '',
         photoURL: picture || '',
-        role: email === adminEmail ? 'admin' : 'user',
-        _id: 'mock-id-due-to-db-failure'
+        role: email === adminEmail ? 'admin' : 'user'
       };
     }
 

@@ -1,21 +1,39 @@
-import connectToDatabase from '@/lib/db/mongodb';
-import { Conversation, IConversation } from '@/models/Conversation';
+"use client";
+
+import { useEffect, useState } from 'react';
+import { db } from '@/lib/firebase/client';
+import { collection, getDocs, orderBy, query } from 'firebase/firestore';
 import { format } from 'date-fns';
-import { MessageSquare, PhoneCall, Clock, Info, ShieldAlert } from 'lucide-react';
+import { MessageSquare, PhoneCall, Clock, Info, ShieldAlert, Loader2 } from 'lucide-react';
 
-export const dynamic = 'force-dynamic';
+export default function ConversationsPage() {
+  const [conversations, setConversations] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [dbError, setDbError] = useState(false);
 
-export default async function ConversationsPage() {
-  let conversations: Array<IConversation & { _id: string }> = [];
-  let dbError = false;
-
-  try {
-    await connectToDatabase();
-    conversations = await Conversation.find({}).sort({ createdAt: -1 }).lean() as unknown as Array<IConversation & { _id: string }>;
-  } catch (e) {
-    dbError = true;
-    console.error("Failed to fetch conversations", e);
-  }
+  useEffect(() => {
+    async function fetchConversations() {
+      try {
+        const convRef = collection(db, "conversations");
+        const q = query(convRef, orderBy("createdAt", "desc"));
+        const snapshot = await getDocs(q);
+        
+        const fetchedConvs = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        
+        setConversations(fetchedConvs);
+      } catch (e) {
+        setDbError(true);
+        console.error("Failed to fetch Firestore conversations", e);
+      } finally {
+        setLoading(false);
+      }
+    }
+    
+    fetchConversations();
+  }, []);
 
   const formatDuration = (seconds: number) => {
     const m = Math.floor(seconds / 60);
@@ -31,11 +49,11 @@ export default async function ConversationsPage() {
           <h1 className="text-4xl font-black tracking-tighter mb-2 text-transparent bg-clip-text bg-gradient-to-r from-white to-white/60">
             AI Voice Transmissions
           </h1>
-          <p className="text-muted-foreground text-lg">Real-time analysis and logs of all Omnidimension AI calls.</p>
+          <p className="text-muted-foreground text-lg">Real-time analysis and logs of all Omnidimension AI calls from Firestore.</p>
         </div>
         <div className="relative z-10 bg-blue-500/10 border border-blue-500/20 text-blue-500 px-6 py-3 rounded-2xl font-bold text-lg shadow-lg flex items-center gap-2">
           <PhoneCall className="w-5 h-5" />
-          {conversations.length} Logs
+          {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : conversations.length} Logs
         </div>
       </div>
 
@@ -43,8 +61,8 @@ export default async function ConversationsPage() {
         <div className="bg-red-500/10 border border-red-500/30 text-red-500 p-6 rounded-2xl flex items-start gap-4 shadow-lg">
           <ShieldAlert className="w-6 h-6 shrink-0 mt-1" />
           <div>
-            <h3 className="font-bold text-lg">Database Connection Unavailable</h3>
-            <p className="opacity-80">We could not retrieve live conversations due to a network or database configuration error.</p>
+            <h3 className="font-bold text-lg">Firestore Permission Error</h3>
+            <p className="opacity-80">We could not retrieve live conversations right now due to insufficient permissions or a network error.</p>
           </div>
         </div>
       )}
@@ -73,7 +91,14 @@ export default async function ConversationsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
-              {conversations.length === 0 ? (
+              {loading ? (
+                <tr>
+                  <td colSpan={6} className="px-8 py-20 text-center text-muted-foreground">
+                    <Loader2 className="w-12 h-12 animate-spin mx-auto opacity-50 mb-4" />
+                    Fetching from Firestore...
+                  </td>
+                </tr>
+              ) : conversations.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="px-8 py-20 text-center text-muted-foreground">
                     <div className="flex justify-center mb-4 opacity-30">
@@ -84,7 +109,7 @@ export default async function ConversationsPage() {
                 </tr>
               ) : (
                 conversations.map((conv) => (
-                  <tr key={conv._id.toString()} className="hover:bg-white/5 transition-all duration-300">
+                  <tr key={conv.id} className="hover:bg-white/5 transition-all duration-300">
                     <td className="px-8 py-5 font-medium flex items-center gap-3">
                       <div className="w-10 h-10 rounded-full bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
                         <PhoneCall size={16} className="text-blue-500" />
@@ -113,7 +138,7 @@ export default async function ConversationsPage() {
                       </span>
                     </td>
                     <td className="px-8 py-5 text-muted-foreground font-medium">
-                      {format(new Date(conv.createdAt), 'MMM dd, yyyy HH:mm')}
+                      {conv.createdAt ? format(new Date(conv.createdAt), 'MMM dd, yyyy HH:mm') : 'Unknown'}
                     </td>
                     <td className="px-8 py-5 text-right">
                       <button className="text-white bg-white/5 hover:bg-white/10 border border-white/10 px-4 py-2 rounded-lg font-bold text-xs transition-colors">Decrypt Transcript</button>
