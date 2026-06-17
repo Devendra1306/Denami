@@ -47,9 +47,9 @@ export default function ConversationsPage() {
         <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 to-indigo-500/10 opacity-50 mix-blend-overlay"></div>
         <div className="relative z-10">
           <h1 className="text-4xl font-black tracking-tighter mb-2 text-transparent bg-clip-text bg-gradient-to-r from-white to-white/60">
-            AI Voice Transmissions
+            Devi Voice Transmissions
           </h1>
-          <p className="text-muted-foreground text-lg">Real-time analysis and logs of all Omnidimension AI calls from Firestore.</p>
+          <p className="text-muted-foreground text-lg">Real-time analysis and logs of all Devi AI calls from Firestore.</p>
         </div>
         <div className="relative z-10 bg-blue-500/10 border border-blue-500/20 text-blue-500 px-6 py-3 rounded-2xl font-bold text-lg shadow-lg flex items-center gap-2">
           <PhoneCall className="w-5 h-5" />
@@ -72,7 +72,7 @@ export default function ConversationsPage() {
         <div>
           <h4 className="font-bold text-lg tracking-tight mb-1">Webhook Telemetry Required</h4>
           <p className="opacity-80 leading-relaxed">
-            To stream live AI call data into this registry, configure your Omnidimension or ElevenLabs webhook to execute a POST request to <code className="bg-black/40 px-2 py-0.5 rounded text-indigo-200">https://yourdomain.com/api/conversations</code> immediately after an agent disconnects.
+            To stream live AI call data into this registry, configure your Devi or ElevenLabs webhook to execute a POST request to <code className="bg-black/40 px-2 py-0.5 rounded text-indigo-200">https://yourdomain.com/api/conversations</code> immediately after an agent disconnects.
           </p>
         </div>
       </div>

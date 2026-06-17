@@ -70,13 +70,10 @@ export function DeviConsultant() {
               <p className="text-sm text-muted-foreground">Click below to start voice conversation</p>
             </div>
 
-            {/* Omnidimension Widget */}
+            {/* ElevenLabs Widget */}
             <div className="w-full flex justify-center min-h-[150px] pt-4">
-              <Script 
-                id="omnidimension-web-widget" 
-                strategy="lazyOnload" 
-                src="https://omnidim.io/web_widget.js?secret_key=37d9f22ba5a2f49810808fce01022732" 
-              />
+              <elevenlabs-convai agent-id="YOUR_AGENT_ID_HERE"></elevenlabs-convai>
+              <Script src="https://elevenlabs.io/convai-widget/index.js" strategy="lazyOnload" />
             </div>
           </div>
         </motion.div>
