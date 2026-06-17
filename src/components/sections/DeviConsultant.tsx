@@ -75,6 +75,7 @@ export function DeviConsultant() {
 
             {/* ElevenLabs Widget */}
             <div className="w-full flex justify-center min-h-[150px] pt-4">
+              {/* @ts-ignore */}
               <elevenlabs-convai 
                 agent-id="YOUR_AGENT_ID_HERE"
                 dynamic-variables={JSON.stringify({ userId: user?.uid || 'anonymous' })}
