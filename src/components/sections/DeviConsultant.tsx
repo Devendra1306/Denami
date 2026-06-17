@@ -3,10 +3,13 @@
 import { motion } from "framer-motion";
 import { Bot, Sparkles } from "lucide-react";
 import Script from "next/script";
+import { useAuth } from '@/context/AuthContext';
 
 // Removed ElevenLabs custom element declaration
 
 export function DeviConsultant() {
+  const { user } = useAuth();
+
   return (
     <section id="consultant" className="py-24 relative overflow-hidden">
       <div className="absolute inset-0 bg-secondary/30 dark:bg-secondary/10 -z-10"></div>
@@ -72,7 +75,10 @@ export function DeviConsultant() {
 
             {/* ElevenLabs Widget */}
             <div className="w-full flex justify-center min-h-[150px] pt-4">
-              <elevenlabs-convai agent-id="YOUR_AGENT_ID_HERE"></elevenlabs-convai>
+              <elevenlabs-convai 
+                agent-id="YOUR_AGENT_ID_HERE"
+                dynamic-variables={JSON.stringify({ userId: user?.uid || 'anonymous' })}
+              ></elevenlabs-convai>
               <Script src="https://elevenlabs.io/convai-widget/index.js" strategy="lazyOnload" />
             </div>
           </div>

@@ -14,7 +14,11 @@ export async function POST(req: NextRequest) {
 
     const data = await req.json();
 
+    const dynamicVariables = data.dynamic_variables || {};
+    const userId = dynamicVariables.userId || null;
+
     const payload = {
+      userId,
       callerId: data.callerId || data.user_id || 'Anonymous',
       agentName: data.agentName || data.agent_id || 'Unknown Agent',
       durationSeconds: data.durationSeconds || data.duration || 0,
