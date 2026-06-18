@@ -39,3 +39,13 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# omnidimension (removed)
+omnidim-sdk-temp/
+
+# temp scripts
+create-admin.js
+reset-auth.js
+extract-env.js
+vercel-firebase-env.txt
+test-db.js
