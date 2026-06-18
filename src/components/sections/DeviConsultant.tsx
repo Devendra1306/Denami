@@ -7,7 +7,7 @@ import Script from "next/script";
 import { useAuth } from '@/context/AuthContext';
 
 // Replace with your actual ElevenLabs Agent ID
-const ELEVENLABS_AGENT_ID = "YOUR_AGENT_ID_HERE";
+const ELEVENLABS_AGENT_ID = "agent_4001kv7t2155ezx8t9jav0cnprn2";
 
 export function DeviConsultant() {
   const { user } = useAuth();
@@ -20,7 +20,7 @@ export function DeviConsultant() {
 
       {/* Load ElevenLabs script once, globally */}
       <Script
-        src="https://elevenlabs.io/convai-widget/index.js"
+        src="https://unpkg.com/@elevenlabs/convai-widget-embed"
         strategy="lazyOnload"
         onLoad={() => setWidgetReady(true)}
       />
