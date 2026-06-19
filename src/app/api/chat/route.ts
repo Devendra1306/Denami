@@ -48,7 +48,7 @@ async function callOpenRouter(apiKey: string, messages: any[]) {
       'X-Title': 'Denami Labs - Devi AI Consultant',
     },
     body: JSON.stringify({
-      model: 'google/gemini-1.5-flash',
+      model: 'google/gemini-3.5-flash',
       messages: [
         { role: 'system', content: DEVI_SYSTEM_PROMPT },
         ...messages,
