@@ -76,14 +76,25 @@ export function DeviConsultant() {
           ...prev,
           { role: "assistant", content: data.reply },
         ]);
+      } else {
+        // Show the actual error so we can debug
+        const errMsg = data.details || data.error || 'Unknown error from AI service.';
+        console.error('[Devi chat error]', errMsg);
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            content: `⚠️ I'm having trouble connecting right now. Error: ${errMsg}\n\nPlease try again in a moment!`,
+          },
+        ]);
       }
-    } catch {
+    } catch (err: any) {
+      console.error('[Devi fetch error]', err);
       setMessages((prev) => [
         ...prev,
         {
           role: "assistant",
-          content:
-            "I'm having a little trouble connecting right now. Please try again in a moment!",
+          content: `⚠️ Network error: ${err.message}. Please check your connection and try again.`,
         },
       ]);
     } finally {

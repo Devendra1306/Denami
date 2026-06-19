@@ -38,6 +38,35 @@ const DEVI_SYSTEM_PROMPT = `You are Devi, the AI Project Consultant for Denami L
 - ❌ Never say "I cannot help with that"
 `;
 
+async function callOpenRouter(apiKey: string, messages: any[]) {
+  const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+      'HTTP-Referer': 'https://denami.vercel.app',
+      'X-Title': 'Denami Labs - Devi AI Consultant',
+    },
+    body: JSON.stringify({
+      model: 'google/gemini-2.0-flash-001',
+      messages: [
+        { role: 'system', content: DEVI_SYSTEM_PROMPT },
+        ...messages,
+      ],
+      temperature: 0.7,
+      max_tokens: 600,
+    }),
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`OpenRouter ${response.status}: ${text}`);
+  }
+
+  const data = await response.json();
+  return data.choices?.[0]?.message?.content ?? null;
+}
+
 export async function POST(req: NextRequest) {
   try {
     const { messages } = await req.json();
@@ -46,47 +75,42 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Messages array is required' }, { status: 400 });
     }
 
-    const apiKey = process.env.OPEN_ROUTER_1;
-    if (!apiKey) {
-      return NextResponse.json({ error: 'API key not configured' }, { status: 500 });
+    // Try keys in order: OPEN_ROUTER_1, then OPEN_ROUTER_2
+    const keys = [
+      process.env.OPEN_ROUTER_1,
+      process.env.OPEN_ROUTER_2,
+    ].filter(Boolean) as string[];
+
+    if (keys.length === 0) {
+      console.error('[chat] No OpenRouter API keys configured in environment variables!');
+      return NextResponse.json({
+        error: 'AI service not configured',
+        details: 'OPEN_ROUTER_1 environment variable is missing. Add it in Vercel dashboard.'
+      }, { status: 500 });
     }
 
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-        'HTTP-Referer': 'https://denami.vercel.app',
-        'X-Title': 'Denami Labs - Devi AI Consultant',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-2.0-flash-001',
-        messages: [
-          { role: 'system', content: DEVI_SYSTEM_PROMPT },
-          ...messages,
-        ],
-        temperature: 0.7,
-        max_tokens: 600,
-        stream: false,
-      }),
-    });
+    let reply: string | null = null;
+    let lastError: string = '';
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('OpenRouter error:', errorText);
-      return NextResponse.json({ error: 'AI service error', details: errorText }, { status: 500 });
+    for (const key of keys) {
+      try {
+        reply = await callOpenRouter(key, messages);
+        if (reply) break;
+      } catch (err: any) {
+        lastError = err.message;
+        console.error('[chat] Key failed, trying next:', err.message);
+      }
     }
-
-    const data = await response.json();
-    const reply = data.choices?.[0]?.message?.content;
 
     if (!reply) {
-      return NextResponse.json({ error: 'No reply from AI' }, { status: 500 });
+      console.error('[chat] All keys failed. Last error:', lastError);
+      return NextResponse.json({ error: 'AI service error', details: lastError }, { status: 500 });
     }
 
     return NextResponse.json({ reply });
+
   } catch (error: any) {
-    console.error('Chat API error:', error);
+    console.error('[chat] Unexpected error:', error);
     return NextResponse.json({ error: 'Internal server error', details: error.message }, { status: 500 });
   }
 }
